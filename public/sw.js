@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yenly-shell-v3'
+const CACHE_NAME = 'yenly-shell-v4'
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/icons/app-icon.svg',
@@ -60,12 +60,12 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (response.ok) {
             const responseCopy = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put('/', responseCopy))
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseCopy))
           }
           return response
         })
         .catch(async () => {
-          const cachedPage = await caches.match('/')
+          const cachedPage = await caches.match(request) || await caches.match('/')
           if (cachedPage) return cachedPage
           return Response.error()
         }),

@@ -13,6 +13,11 @@
     Cache-Control = "no-cache"
 
 [[headers]]
+  for = "/guide/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache"

@@ -57,6 +57,14 @@ const translations = {
     themeCurrentDark: 'Thème sombre',
     install: 'Installer',
     installHelp: 'Pour installer Yenly, appuyez sur Partager dans Safari, puis sur « Sur l’écran d’accueil ».',
+    guideEyebrow: 'LE GUIDE YENLY',
+    guideTitle: 'Tokyo, côté pratique.',
+    guideDescription: 'Des repères utiles et des adresses à vérifier avant de partir.',
+    guideHalalTitle: 'Restaurants halal à Tokyo',
+    guideHalalDescription: 'Trouver une table et vérifier les options halal avant de réserver.',
+    guideMoneyTitle: 'Changer ses yens à Shibuya',
+    guideMoneyDescription: 'Comparer bureaux de change, retraits et frais avant de payer.',
+    guideNav: 'Voir tous les guides',
   },
   en: {
     pageTitle: 'Yenly — Japanese Yen Converter',
@@ -101,6 +109,14 @@ const translations = {
     themeCurrentDark: 'Dark theme',
     install: 'Install',
     installHelp: 'To install Yenly, tap Share in Safari, then choose “Add to Home Screen”.',
+    guideEyebrow: 'THE YENLY GUIDE',
+    guideTitle: 'Tokyo, made practical.',
+    guideDescription: 'Useful travel tips and places to check before you go.',
+    guideHalalTitle: 'Halal restaurants in Tokyo',
+    guideHalalDescription: 'Find a place to eat and check halal options before booking.',
+    guideMoneyTitle: 'Exchanging yen in Shibuya',
+    guideMoneyDescription: 'Compare exchange counters, cash withdrawals and fees.',
+    guideNav: 'Browse all guides',
   },
   ja: {
     pageTitle: 'Yenly — 日本円の通貨換算',
@@ -145,6 +161,14 @@ const translations = {
     themeCurrentDark: 'ダークテーマ',
     install: 'インストール',
     installHelp: 'Yenlyをインストールするには、Safariの共有ボタンをタップし、「ホーム画面に追加」を選択してください。',
+    guideEyebrow: 'YENLY ガイド',
+    guideTitle: '東京旅行を、もっと便利に。',
+    guideDescription: '出発前に知っておきたい実用情報とスポット。',
+    guideHalalTitle: '東京のハラールレストラン',
+    guideHalalDescription: '予約前にハラール対応を確認して、お店を探しましょう。',
+    guideMoneyTitle: '渋谷で円を両替するには',
+    guideMoneyDescription: '両替所、ATM、手数料を比べてから利用しましょう。',
+    guideNav: 'すべてのガイドを見る',
   },
 }
 
@@ -258,7 +282,31 @@ app.innerHTML = `
         </div>
       </section>
 
-      <footer class="footer"><span data-i18n="footerMade">Fait avec soin pour vos voyages.</span><span data-i18n="footerDisclaimer">Les taux sont indicatifs et peuvent varier.</span></footer>
+      <section class="guide-preview" aria-labelledby="guide-title">
+        <p class="eyebrow"><span class="eyebrow-line"></span> <span data-i18n="guideEyebrow">LE GUIDE YENLY</span></p>
+        <h2 id="guide-title" data-i18n="guideTitle">Tokyo, côté pratique.</h2>
+        <p class="guide-preview-description" data-i18n="guideDescription">Des repères utiles et des adresses à vérifier avant de partir.</p>
+        <div class="guide-preview-grid">
+          <a class="guide-preview-card" href="/guide/restaurants-halal-tokyo.html">
+            <span class="guide-card-icon" aria-hidden="true">食</span>
+            <span class="guide-card-copy">
+              <strong data-i18n="guideHalalTitle">Restaurants halal à Tokyo</strong>
+              <span data-i18n="guideHalalDescription">Trouver une table et vérifier les options halal avant de réserver.</span>
+            </span>
+            <span class="guide-card-arrow" aria-hidden="true">↗</span>
+          </a>
+          <a class="guide-preview-card" href="/guide/change-yens-shibuya.html">
+            <span class="guide-card-icon" aria-hidden="true">¥</span>
+            <span class="guide-card-copy">
+              <strong data-i18n="guideMoneyTitle">Changer ses yens à Shibuya</strong>
+              <span data-i18n="guideMoneyDescription">Comparer bureaux de change, retraits et frais avant de payer.</span>
+            </span>
+            <span class="guide-card-arrow" aria-hidden="true">↗</span>
+          </a>
+        </div>
+      </section>
+
+      <footer class="footer"><span data-i18n="footerMade">Fait avec soin pour vos voyages.</span><a href="/guide/" data-i18n="guideNav">Voir tous les guides</a><span data-i18n="footerDisclaimer">Les taux sont indicatifs et peuvent varier.</span></footer>
     </main>
   </div>
 `
