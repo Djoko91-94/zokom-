@@ -1,6 +1,5 @@
-const CACHE_NAME = 'yenly-shell-v1'
+const CACHE_NAME = 'yenly-shell-v3'
 const APP_SHELL = [
-  '/',
   '/manifest.webmanifest',
   '/icons/app-icon.svg',
   '/icons/icon-192.png',
@@ -9,10 +8,32 @@ const APP_SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await cache.addAll(APP_SHELL)
+
+      const pageResponse = await fetch('/')
+      if (!pageResponse.ok) {
+        throw new Error(`Could not cache the app page: ${pageResponse.status}`)
+      }
+
+      const pageHtml = await pageResponse.clone().text()
+      await cache.put('/', pageResponse)
+
+      const assetPaths = Array.from(
+        pageHtml.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g),
+        (match) => new URL(match[1], self.location.origin),
+      )
+        .filter((url) => url.origin === self.location.origin)
+        .map((url) => `${url.pathname}${url.search}`)
+
+      await cache.addAll(assetPaths)
+    })
       .then(() => self.skipWaiting()),
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {

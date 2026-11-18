@@ -37,6 +37,8 @@ const translations = {
     loading: 'Récupération des taux…',
     unavailable: 'Taux indisponibles',
     refreshed: 'Taux actualisés',
+    cachedRates: 'Derniers taux enregistrés',
+    cachedError: 'Connexion indisponible. Le dernier taux enregistré est utilisé. ({detail})',
     amountInvalid: 'Saisissez un montant valide pour voir la conversion.',
     rateLoading: 'Chargement du taux…',
     rateUnavailable: 'Le taux sera affiché dès que le service sera disponible.',
@@ -49,6 +51,10 @@ const translations = {
     quickAmounts: 'Montants rapides',
     themeDark: 'Activer le mode sombre',
     themeLight: 'Activer le mode clair',
+    themeSystem: 'Suivre le thème de l’appareil',
+    themeCurrentSystem: 'Thème automatique',
+    themeCurrentLight: 'Thème clair',
+    themeCurrentDark: 'Thème sombre',
     install: 'Installer',
     installHelp: 'Pour installer Yenly, appuyez sur Partager dans Safari, puis sur « Sur l’écran d’accueil ».',
   },
@@ -75,6 +81,8 @@ const translations = {
     loading: 'Fetching exchange rates…',
     unavailable: 'Rates unavailable',
     refreshed: 'Rates updated',
+    cachedRates: 'Saved rates',
+    cachedError: 'Connection unavailable. Using the last saved rate. ({detail})',
     amountInvalid: 'Enter a valid amount to see the conversion.',
     rateLoading: 'Loading exchange rate…',
     rateUnavailable: 'The rate will appear when the service is available.',
@@ -87,6 +95,10 @@ const translations = {
     quickAmounts: 'Quick amounts',
     themeDark: 'Enable dark mode',
     themeLight: 'Enable light mode',
+    themeSystem: 'Follow device theme',
+    themeCurrentSystem: 'Automatic theme',
+    themeCurrentLight: 'Light theme',
+    themeCurrentDark: 'Dark theme',
     install: 'Install',
     installHelp: 'To install Yenly, tap Share in Safari, then choose “Add to Home Screen”.',
   },
@@ -113,6 +125,8 @@ const translations = {
     loading: '為替レートを取得中…',
     unavailable: 'レートを取得できません',
     refreshed: 'レート更新',
+    cachedRates: '保存済みレート',
+    cachedError: '接続できません。保存済みのレートを使用しています。（{detail}）',
     amountInvalid: '換算する金額を正しく入力してください。',
     rateLoading: '為替レートを読み込み中…',
     rateUnavailable: 'サービスが利用可能になるとレートが表示されます。',
@@ -125,6 +139,10 @@ const translations = {
     quickAmounts: '金額を選ぶ',
     themeDark: 'ダークモードにする',
     themeLight: 'ライトモードにする',
+    themeSystem: '端末のテーマに合わせる',
+    themeCurrentSystem: '自動テーマ',
+    themeCurrentLight: 'ライトテーマ',
+    themeCurrentDark: 'ダークテーマ',
     install: 'インストール',
     installHelp: 'Yenlyをインストールするには、Safariの共有ボタンをタップし、「ホーム画面に追加」を選択してください。',
   },
@@ -152,9 +170,10 @@ app.innerHTML = `
           <button type="button" class="language-button" data-language="ja" aria-pressed="false">JP</button>
         </div>
         <button class="install-button" id="install" type="button" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="install">Installer</span></button>
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false" aria-label="Activer le mode sombre" title="Activer le mode sombre">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Thème automatique" title="Thème automatique">
           <svg class="sun-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           <svg class="moon-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.2 15.1A8.6 8.6 0 0 1 8.9 3.8 8.7 8.7 0 1 0 20.2 15.1Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="system-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 21h8m-4-4v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         </button>
         <a class="topbar-link" href="#convertisseur"><span data-i18n="convert">Convertir</span> <span aria-hidden="true">↗</span></a>
       </div>
@@ -276,36 +295,50 @@ let ratesError = null
 let activeRateRequest = null
 let rateRequestId = 0
 let installPrompt = null
-let hasExplicitThemePreference = false
+let themePreference = 'system'
+let ratesAreCached = false
 
-function getInitialTheme() {
+function getInitialThemePreference() {
   try {
-    const savedTheme = localStorage.getItem('yenly-theme')
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      hasExplicitThemePreference = true
-      return savedTheme
+    const savedPreference = localStorage.getItem('yenly-theme-mode')
+    if (savedPreference === 'light' || savedPreference === 'dark' || savedPreference === 'system') {
+      return savedPreference
     }
   } catch (error) {
     console.warn('Yenly could not read the saved theme preference.', error)
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'system'
 }
 
-function setTheme(theme, persist = false) {
+function setThemePreference(preference, persist = false) {
+  themePreference = preference
+  const followsDarkScheme = colorSchemePreference.matches
+  const theme = preference === 'system'
+    ? (followsDarkScheme ? 'dark' : 'light')
+    : preference
+
+  document.documentElement.dataset.themeMode = preference
   document.documentElement.dataset.theme = theme
   themeColorMeta.content = theme === 'dark' ? '#171d19' : '#f8f8f5'
   appleStatusMeta.content = theme === 'dark' ? 'black-translucent' : 'default'
-  themeToggle.setAttribute('aria-pressed', String(theme === 'dark'))
 
-  const labelKey = theme === 'dark' ? 'themeLight' : 'themeDark'
-  themeToggle.setAttribute('aria-label', translations[currentLanguage][labelKey])
-  themeToggle.title = translations[currentLanguage][labelKey]
+  const copy = translations[currentLanguage]
+  const currentLabelKey = preference === 'system'
+    ? 'themeCurrentSystem'
+    : preference === 'dark'
+      ? 'themeCurrentDark'
+      : 'themeCurrentLight'
+  const appearanceLabelKey = theme === 'dark' ? 'themeCurrentDark' : 'themeCurrentLight'
+  const label = preference === 'system'
+    ? `${copy[currentLabelKey]} (${copy[appearanceLabelKey]})`
+    : copy[currentLabelKey]
+  themeToggle.setAttribute('aria-label', label)
+  themeToggle.title = `${label} · ${copy.themeSystem}`
 
   if (persist) {
     try {
-      localStorage.setItem('yenly-theme', theme)
-      hasExplicitThemePreference = true
+      localStorage.setItem('yenly-theme-mode', preference)
     } catch (error) {
       console.warn('Yenly could not save the theme preference.', error)
     }
@@ -407,7 +440,15 @@ function renderConversion() {
 
 function updateRateStatus() {
   const copy = translations[currentLanguage]
-  if (ratesError) {
+  if (rates && ratesAreCached) {
+    rateStatus.textContent = `${copy.cachedRates} · ${new Intl.DateTimeFormat(localeByLanguage[currentLanguage], {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Paris',
+    }).format(ratesDate)}`
+  } else if (ratesError) {
     rateStatus.textContent = copy.unavailable
   } else if (!rates) {
     rateStatus.textContent = copy.loading
@@ -463,12 +504,60 @@ function setLanguage(language) {
     const formattedAmount = formatAmount(Number(button.dataset.amount), language, true)
     button.textContent = language === 'fr' ? `${formattedAmount} ¥` : `¥${formattedAmount}`
   })
-  setTheme(document.documentElement.dataset.theme || 'light')
+  setThemePreference(themePreference)
   if (ratesError) {
-    errorMessage.textContent = copy.error.replace('{detail}', ratesError)
+    const errorCopy = rates ? copy.cachedError : copy.error
+    errorMessage.textContent = errorCopy.replace('{detail}', ratesError)
   }
   updateRateStatus()
   renderConversion()
+}
+
+function readCachedRates(base) {
+  const storageKey = `yenly-rates-${base}`
+  let serializedRates
+
+  try {
+    serializedRates = localStorage.getItem(storageKey)
+  } catch (error) {
+    console.warn('Yenly could not read saved exchange rates.', error)
+    return null
+  }
+
+  if (!serializedRates) return null
+
+  try {
+    const cachedData = JSON.parse(serializedRates)
+    const date = new Date(cachedData.updatedAt)
+    const isValid = cachedData.base === base
+      && Number.isFinite(date.getTime())
+      && currencies.every(({ code }) => Number.isFinite(cachedData.rates?.[code]) && cachedData.rates[code] > 0)
+
+    if (isValid) return { rates: cachedData.rates, date }
+
+    localStorage.removeItem(storageKey)
+  } catch (error) {
+    console.warn('Yenly found invalid saved exchange rates.', error)
+    try {
+      localStorage.removeItem(storageKey)
+    } catch (storageError) {
+      console.warn('Yenly could not remove invalid saved exchange rates.', storageError)
+    }
+  }
+
+  return null
+}
+
+function saveRatesCache(base, savedRates, date) {
+  try {
+    localStorage.setItem(`yenly-rates-${base}`, JSON.stringify({
+      base,
+      rates: savedRates,
+      updatedAt: date.toISOString(),
+    }))
+  } catch (error) {
+    console.warn('Yenly could not save exchange rates for offline use.', error)
+  }
 }
 
 async function loadRates() {
@@ -478,9 +567,11 @@ async function loadRates() {
   const requestId = ++rateRequestId
   const requestedBase = fromSelect.value
 
-  rates = null
-  ratesDate = null
-  ratesBase = null
+  const cachedRates = readCachedRates(requestedBase)
+  rates = cachedRates?.rates ?? null
+  ratesDate = cachedRates?.date ?? null
+  ratesBase = cachedRates ? requestedBase : null
+  ratesAreCached = Boolean(cachedRates)
   ratesError = null
   refreshButton.disabled = true
   errorMessage.hidden = true
@@ -514,19 +605,28 @@ async function loadRates() {
     rates = newRates
     ratesDate = new Date(data.time_last_update_utc)
     ratesBase = requestedBase
+    ratesAreCached = false
+    saveRatesCache(requestedBase, newRates, ratesDate)
     updateRateStatus()
     renderConversion()
   } catch (error) {
     if (requestId !== rateRequestId || error.name === 'AbortError') return
     ratesError = error.message
-    rates = null
-    ratesDate = null
-    ratesBase = null
+    if (!ratesAreCached) {
+      rates = null
+      ratesDate = null
+      ratesBase = null
+    }
     updateRateStatus()
-    errorMessage.textContent = translations[currentLanguage].error.replace('{detail}', ratesError)
+    const errorCopy = rates ? translations[currentLanguage].cachedError : translations[currentLanguage].error
+    errorMessage.textContent = errorCopy.replace('{detail}', ratesError)
     errorMessage.hidden = false
-    resultOutput.textContent = '—'
-    rateLine.textContent = translations[currentLanguage].rateUnavailable
+    if (rates) {
+      renderConversion()
+    } else {
+      resultOutput.textContent = '—'
+      rateLine.textContent = translations[currentLanguage].rateUnavailable
+    }
   } finally {
     if (requestId === rateRequestId) {
       activeRateRequest = null
@@ -536,14 +636,24 @@ async function loadRates() {
 }
 
 themeToggle.addEventListener('click', () => {
-  const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
-  setTheme(nextTheme, true)
+  const currentTheme = document.documentElement.dataset.theme
+  const nextPreference = themePreference === 'system'
+    ? (currentTheme === 'dark' ? 'light' : 'dark')
+    : themePreference === 'light'
+      ? 'dark'
+      : 'system'
+  setThemePreference(nextPreference, true)
 })
 
 const colorSchemePreference = window.matchMedia('(prefers-color-scheme: dark)')
-colorSchemePreference.addEventListener?.('change', (event) => {
-  if (!hasExplicitThemePreference) setTheme(event.matches ? 'dark' : 'light')
-})
+const handleColorSchemeChange = () => {
+  if (themePreference === 'system') setThemePreference('system')
+}
+if (colorSchemePreference.addEventListener) {
+  colorSchemePreference.addEventListener('change', handleColorSchemeChange)
+} else {
+  colorSchemePreference.addListener(handleColorSchemeChange)
+}
 
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault()
@@ -574,11 +684,34 @@ installButton.addEventListener('click', async () => {
   installButton.hidden = true
 })
 
-setTheme(getInitialTheme())
+setThemePreference(getInitialThemePreference())
 
 if ('serviceWorker' in navigator) {
+  let hasActiveController = Boolean(navigator.serviceWorker.controller)
+  let isReloadingForUpdate = false
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hasActiveController && !isReloadingForUpdate) {
+      isReloadingForUpdate = true
+      window.location.reload()
+      return
+    }
+    hasActiveController = true
+  })
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        const checkForUpdates = () => registration.update()
+          .catch((error) => console.warn('Yenly could not check for app updates.', error))
+
+        checkForUpdates()
+        window.addEventListener('focus', checkForUpdates)
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') checkForUpdates()
+        })
+        window.setInterval(checkForUpdates, 60 * 60 * 1000)
+      })
       .catch((error) => console.error('Yenly could not register its offline app service.', error))
   })
 }
