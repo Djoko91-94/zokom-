@@ -5,8 +5,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#f8f8f5" />
+  <script src="/theme-init.js"></script>
   <meta name="description"
-    content="Le guide Yenly pour préparer un voyage au Japon : adresses halal à Tokyo, change de yens à Shibuya et conseils pratiques." />
+    content="Trouvez des restaurants, boutiques, services pratiques et lieux à visiter à Tokyo. Comparez les avis et convertissez les budgets en yens." />
+  <link rel="canonical" href="https://zokom.vercel.app/guide/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Yenly" />
+  <meta property="og:title" content="Guide de voyage au Japon : Tokyo | Yenly" />
+  <meta property="og:description" content="Restaurants, shopping, services pratiques et lieux à visiter à Tokyo : les adresses utiles aux voyageurs." />
+  <meta property="og:url" content="https://zokom.vercel.app/guide/" />
+  <meta name="twitter:card" content="summary" />
   <link rel="icon" type="image/svg+xml" href="/icons/app-icon.svg" />
   <link rel="stylesheet" href="/src/style.css" />
   <title>Guide de voyage au Japon : Tokyo | Yenly</title>
@@ -33,7 +41,197 @@
       <section class="guide-hero">
         <p class="eyebrow"><span class="eyebrow-line"></span> LE GUIDE YENLY</p>
         <h1>Tokyo, côté <span>pratique.</span></h1>
-        <p class="guide-lead">Des repères simples pour préparer votre voyage : où trouver des restaurants halal à Tokyo, comment obtenir des yens à Shibuya et quels frais vérifier avant de payer.</p>
+        <p class="guide-lead">Des adresses utiles aux voyageurs francophones et africains : où manger, faire du shopping, trouver des services pratiques et découvrir Tokyo. Les avis sont vérifiés avant publication.</p>
+      </section>
+
+      <section class="community-section" id="annuaire" aria-labelledby="community-title" data-review-directory>
+        <div class="community-heading">
+          <div>
+            <p class="eyebrow"><span class="eyebrow-line"></span> L’ANNUAIRE YENLY</p>
+            <h2 id="community-title">Les bonnes adresses, par besoin.</h2>
+            <p class="community-intro">Filtrez par catégorie et quartier, consultez les budgets indicatifs par personne en yens et envoyez-les au convertisseur Yenly d’un clic.</p>
+          </div>
+          <span class="moderation-badge"><span aria-hidden="true">✓</span> Avis vérifiés par l’équipe</span>
+        </div>
+
+        <nav class="directory-category-nav" aria-label="Catégories de l’annuaire">
+          <a href="?category=restaurant#annuaire">Manger <span>Adresses abordables, halal, sans porc, cuisine africaine et ramen</span></a>
+          <a href="?category=shopping#annuaire">Shopping <span>Friperies, détaxe à vérifier (Don Quijote, BIC Camera), pharmacies comme Matsumoto Kiyoshi</span></a>
+          <a href="?category=services#annuaire">Services pratiques <span>Change, ATM 7-Eleven, Pocket Wi-Fi et eSIM</span></a>
+          <a href="?category=visits#annuaire">À visiter <span>Shinjuku, Shibuya, Asakusa, Akihabara</span></a>
+        </nav>
+
+        <p class="review-setup-message" id="review-setup-message" role="status" hidden>
+          L’annuaire avec avis est en cours de configuration. Les adresses apparaîtront ici après vérification.
+        </p>
+
+        <div class="review-app" id="review-app" hidden>
+          <div class="directory-controls">
+            <label class="directory-search">
+              <span>Rechercher une adresse</span>
+              <input id="place-search" type="search" placeholder="Nom, quartier ou mot-clé" autocomplete="off" />
+            </label>
+            <label>
+              <span>Catégorie</span>
+              <select id="category-filter">
+                <option value="">Toutes les catégories</option>
+                <option value="restaurant">Restauration</option>
+                <option value="shopping">Shopping & bonnes affaires</option>
+                <option value="services">Services pratiques</option>
+                <option value="visits">Lieux à visiter</option>
+              </select>
+            </label>
+            <label>
+              <span>Type</span>
+              <select id="subcategory-filter">
+                <option value="">Tous les types</option>
+              </select>
+            </label>
+            <label>
+              <span>Quartier</span>
+              <select id="area-filter">
+                <option value="">Tous les quartiers</option>
+              </select>
+            </label>
+            <label>
+              <span>Trier par</span>
+              <select id="place-sort">
+                <option value="rating">Meilleures notes</option>
+                <option value="reviews">Avis les plus nombreux</option>
+                <option value="name">Nom</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="review-status" id="directory-status" role="status" aria-live="polite">Chargement des adresses…</p>
+          <div class="place-grid" id="place-list"></div>
+
+          <section class="selected-place-panel" id="selected-place-panel" aria-live="polite" hidden>
+            <div class="selected-place-heading">
+              <div>
+                <p class="directory-card-label">ADRESSE SÉLECTIONNÉE</p>
+                <h3 id="selected-place-name"></h3>
+                <p id="selected-place-address"></p>
+                <p class="place-budget" id="selected-place-budget" hidden></p>
+              </div>
+              <button class="text-button" id="close-selected-place" type="button">Fermer</button>
+            </div>
+
+            <div class="selected-place-actions">
+              <a class="directory-card-link" id="selected-place-website" target="_blank" rel="noopener noreferrer" hidden>Site officiel <span aria-hidden="true">↗</span></a>
+              <button class="primary-button" id="open-review-form" type="button">Écrire un avis</button>
+            </div>
+            <p class="review-status" id="selected-place-status" role="status" aria-live="polite"></p>
+            <div class="review-list" id="review-list"></div>
+          </section>
+
+          <section class="account-panel" id="account-panel" aria-labelledby="account-title">
+            <div class="account-panel-heading">
+              <div>
+                <p class="directory-card-label">PARTAGEZ VOTRE EXPÉRIENCE</p>
+                <h3 id="account-title">Un compte pour donner votre avis</h3>
+              </div>
+              <div id="signed-in-panel" class="signed-in-panel" hidden>
+                <span id="signed-in-label"></span>
+                <button class="text-button" id="sign-out" type="button">Se déconnecter</button>
+              </div>
+            </div>
+
+            <div id="signed-out-panel">
+              <div class="auth-tabs" role="group" aria-label="Connexion ou création de compte">
+                <button type="button" class="auth-tab is-active" data-auth-mode="signup" aria-pressed="true">Créer un compte</button>
+                <button type="button" class="auth-tab" data-auth-mode="signin" aria-pressed="false">Se connecter</button>
+              </div>
+              <form id="auth-form" class="auth-form">
+                <label id="display-name-field">
+                  <span>Nom affiché</span>
+                  <input id="display-name" name="displayName" type="text" minlength="2" maxlength="60" autocomplete="nickname" required />
+                </label>
+                <label>
+                  <span>Adresse e-mail</span>
+                  <input id="auth-email" name="email" type="email" autocomplete="email" required />
+                </label>
+                <label>
+                  <span>Mot de passe</span>
+                  <input id="auth-password" name="password" type="password" minlength="8" autocomplete="new-password" required />
+                </label>
+                <button class="primary-button" id="auth-submit" type="submit">Créer mon compte</button>
+              </form>
+            </div>
+            <p class="review-status" id="auth-status" role="status" aria-live="polite"></p>
+          </section>
+
+          <form class="review-form" id="review-form" hidden>
+            <div>
+              <p class="directory-card-label">VOTRE AVIS</p>
+              <h3>Comment était cette adresse ?</h3>
+            </div>
+            <fieldset class="star-rating">
+              <legend>Votre note</legend>
+              <div class="star-rating-options">
+                <label><input type="radio" name="rating" value="1" required /><span aria-hidden="true">★</span><span class="visually-hidden">1 étoile</span></label>
+                <label><input type="radio" name="rating" value="2" /><span aria-hidden="true">★</span><span class="visually-hidden">2 étoiles</span></label>
+                <label><input type="radio" name="rating" value="3" /><span aria-hidden="true">★</span><span class="visually-hidden">3 étoiles</span></label>
+                <label><input type="radio" name="rating" value="4" /><span aria-hidden="true">★</span><span class="visually-hidden">4 étoiles</span></label>
+                <label><input type="radio" name="rating" value="5" /><span aria-hidden="true">★</span><span class="visually-hidden">5 étoiles</span></label>
+              </div>
+            </fieldset>
+            <label>
+              <span>Titre de votre avis</span>
+              <input id="review-title" name="title" type="text" minlength="3" maxlength="100" required />
+            </label>
+            <label>
+              <span>Racontez votre expérience</span>
+              <textarea id="review-body" name="body" rows="5" minlength="20" maxlength="2000" required></textarea>
+            </label>
+            <p class="review-guidelines">Restez respectueux et parlez de votre expérience personnelle. N’incluez pas d’informations privées. Votre avis sera publié après validation.</p>
+            <button class="primary-button" id="review-submit" type="submit">Envoyer pour validation</button>
+            <p class="review-status" id="review-submit-status" role="status" aria-live="polite"></p>
+          </form>
+
+          <section class="moderator-panel" id="moderator-panel" aria-labelledby="moderator-title" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="directory-card-label">ESPACE MODÉRATION</p>
+                <h3 id="moderator-title">Adresses et avis à vérifier</h3>
+              </div>
+            </div>
+
+            <form class="moderator-place-form" id="place-form">
+              <h4>Publier une adresse</h4>
+              <label>
+                <span>Catégorie</span>
+                <select name="category" id="place-category" required>
+                  <option value="restaurant">Restauration</option>
+                  <option value="shopping">Shopping & bonnes affaires</option>
+                  <option value="services">Services pratiques</option>
+                  <option value="visits">Lieux à visiter</option>
+                </select>
+              </label>
+              <label>
+                <span>Type</span>
+                <select name="subcategory" id="place-subcategory" required>
+                  <option value="halal">Halal</option>
+                </select>
+              </label>
+              <label><span>Nom du lieu</span><input name="name" type="text" maxlength="120" required /></label>
+              <label><span>Quartier de Tokyo</span><input name="neighborhood" type="text" maxlength="80" required /></label>
+              <label><span>Adresse ou zone</span><input name="address" type="text" maxlength="240" required /></label>
+              <label class="place-form-description"><span>Description et informations utiles</span><textarea name="description" rows="3" minlength="20" maxlength="1200" required></textarea></label>
+              <label><span>Budget indicatif en yens / personne</span><input name="budgetJpy" type="number" min="0" step="1" inputmode="numeric" /></label>
+              <label><span>Site officiel (facultatif)</span><input name="websiteUrl" type="url" inputmode="url" /></label>
+              <label><span>Source de vérification</span><input name="sourceUrl" type="url" inputmode="url" required /></label>
+              <button class="primary-button" type="submit">Publier cette adresse</button>
+              <p class="review-status" id="place-submit-status" role="status" aria-live="polite"></p>
+            </form>
+
+            <div class="pending-reviews">
+              <h4>Avis en attente</h4>
+              <p class="review-status" id="moderation-status" role="status" aria-live="polite"></p>
+              <div class="moderation-list" id="moderation-list"></div>
+            </div>
+          </section>
+        </div>
       </section>
 
       <section class="guide-article-list" aria-labelledby="guide-topics">
@@ -48,7 +246,7 @@
             <span class="guide-card-icon" aria-hidden="true">食</span>
             <span class="guide-card-copy">
               <strong>Restaurants halal à Tokyo</strong>
-              <span>Annuaire, filtres utiles et questions à poser avant de réserver.</span>
+              <span>Conseils pour vérifier certification, ingrédients et options halal avant de réserver.</span>
             </span>
             <span class="guide-card-arrow" aria-hidden="true">↗</span>
           </a>
@@ -74,6 +272,7 @@
       </footer>
     </main>
   </div>
+  <script type="module" src="/src/reviews.js"></script>
 </body>
 
 </html>

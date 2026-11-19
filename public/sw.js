@@ -73,6 +73,24 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  if (requestUrl.pathname === '/theme-init.js') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const responseCopy = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseCopy))
+          }
+          return response
+        })
+        .catch(async () => {
+          const cachedScript = await caches.match(request)
+          return cachedScript || Response.error()
+        }),
+    )
+    return
+  }
+
   event.respondWith(
     caches.match(request)
       .then((cachedResponse) => cachedResponse || fetch(request).then((response) => {

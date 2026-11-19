@@ -31,6 +31,7 @@ const translations = {
     sending: 'Vous envoyez',
     receiving: 'Vous recevez environ',
     amountAccessible: 'Montant à convertir',
+    receivedAmountAccessible: 'Montant dans la devise d’arrivée',
     fromCurrency: 'Devise de départ',
     toCurrency: 'Devise d’arrivée',
     swap: 'Inverser les devises',
@@ -64,6 +65,8 @@ const translations = {
     guideHalalDescription: 'Trouver une table et vérifier les options halal avant de réserver.',
     guideMoneyTitle: 'Changer ses yens à Shibuya',
     guideMoneyDescription: 'Comparer bureaux de change, retraits et frais avant de payer.',
+    guideDirectoryTitle: 'Annuaire des bonnes adresses',
+    guideDirectoryDescription: 'Restaurants, shopping, services pratiques et lieux à visiter.',
     guideNav: 'Voir tous les guides',
   },
   en: {
@@ -83,6 +86,7 @@ const translations = {
     sending: 'You send',
     receiving: 'You receive approx.',
     amountAccessible: 'Amount to convert',
+    receivedAmountAccessible: 'Amount in destination currency',
     fromCurrency: 'From currency',
     toCurrency: 'To currency',
     swap: 'Swap currencies',
@@ -116,6 +120,8 @@ const translations = {
     guideHalalDescription: 'Find a place to eat and check halal options before booking.',
     guideMoneyTitle: 'Exchanging yen in Shibuya',
     guideMoneyDescription: 'Compare exchange counters, cash withdrawals and fees.',
+    guideDirectoryTitle: 'Tokyo places directory',
+    guideDirectoryDescription: 'Restaurants, shopping, practical services and places to visit.',
     guideNav: 'Browse all guides',
   },
   ja: {
@@ -135,6 +141,7 @@ const translations = {
     sending: '換算する金額',
     receiving: '換算後の金額（目安）',
     amountAccessible: '換算する金額',
+    receivedAmountAccessible: '換算後の通貨での金額',
     fromCurrency: '換算前の通貨',
     toCurrency: '換算後の通貨',
     swap: '通貨を入れ替える',
@@ -168,6 +175,8 @@ const translations = {
     guideHalalDescription: '予約前にハラール対応を確認して、お店を探しましょう。',
     guideMoneyTitle: '渋谷で円を両替するには',
     guideMoneyDescription: '両替所、ATM、手数料を比べてから利用しましょう。',
+    guideDirectoryTitle: '東京のおすすめスポット',
+    guideDirectoryDescription: 'レストラン、ショッピング、便利なサービス、観光スポット。',
     guideNav: 'すべてのガイドを見る',
   },
 }
@@ -256,9 +265,9 @@ app.innerHTML = `
             </button>
 
             <div class="currency-field result-field">
-              <label for="to-currency" data-i18n="receiving">Vous recevez environ</label>
+              <label for="result" data-i18n="receiving">Vous recevez environ</label>
               <div class="amount-row">
-                <output id="result" aria-live="polite">—</output>
+                <input id="result" type="text" inputmode="decimal" placeholder="—" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Montant dans la devise d’arrivée" />
                 <span class="currency-flag" id="to-flag" aria-hidden="true">🇪🇺</span>
                 <select id="to-currency" aria-label="Devise d’arrivée"></select>
               </div>
@@ -303,6 +312,14 @@ app.innerHTML = `
             </span>
             <span class="guide-card-arrow" aria-hidden="true">↗</span>
           </a>
+          <a class="guide-preview-card home-guide-feature" href="/guide/#annuaire">
+            <span class="guide-card-icon" aria-hidden="true">⌖</span>
+            <span class="guide-card-copy">
+              <strong data-i18n="guideDirectoryTitle">Annuaire des bonnes adresses</strong>
+              <span data-i18n="guideDirectoryDescription">Restaurants, shopping, services pratiques et lieux à visiter.</span>
+            </span>
+            <span class="guide-card-arrow" aria-hidden="true">↗</span>
+          </a>
         </div>
       </section>
 
@@ -314,7 +331,7 @@ app.innerHTML = `
 const amountInput = document.querySelector('#amount')
 const fromSelect = document.querySelector('#from-currency')
 const toSelect = document.querySelector('#to-currency')
-const resultOutput = document.querySelector('#result')
+const resultInput = document.querySelector('#result')
 const fromFlag = document.querySelector('#from-flag')
 const toFlag = document.querySelector('#to-flag')
 const fromName = document.querySelector('#from-name')
@@ -345,6 +362,8 @@ let rateRequestId = 0
 let installPrompt = null
 let themePreference = 'system'
 let ratesAreCached = false
+let activeAmountSide = 'from'
+let resultCurrencyCode = 'EUR'
 
 function getInitialThemePreference() {
   try {
@@ -400,7 +419,14 @@ function getCurrency(code) {
   return currencies.find((currency) => currency.code === code)
 }
 
-function formatNumber(value, currency, maximumFractionDigits = 2) {
+function formatNumber(
+  value,
+  currency,
+  maximumFractionDigits = new Intl.NumberFormat(localeByLanguage[currentLanguage], {
+    style: 'currency',
+    currency,
+  }).resolvedOptions().maximumFractionDigits,
+) {
   return new Intl.NumberFormat(localeByLanguage[currentLanguage], {
     style: 'currency',
     currency,
@@ -417,12 +443,19 @@ function getNumberSymbols(language) {
   }
 }
 
-function parseLocalizedNumber(value, language) {
+function parseLocalizedNumber(value, language, currency = null) {
   const trimmedValue = value.trim()
   if (!trimmedValue) return Number.NaN
 
   const { group, decimal } = getNumberSymbols(language)
   let normalized = trimmedValue.replace(/[\s\u00a0\u202f\u2009']/g, '')
+  if (currency) {
+    const currencySymbol = new Intl.NumberFormat(localeByLanguage[language], {
+      style: 'currency',
+      currency,
+    }).formatToParts(0).find((part) => part.type === 'currency')?.value
+    if (currencySymbol) normalized = normalized.split(currencySymbol).join('')
+  }
   if (group && group !== decimal) normalized = normalized.split(group).join('')
 
   if (decimal !== '.') {
@@ -435,17 +468,23 @@ function parseLocalizedNumber(value, language) {
   return Number(normalized)
 }
 
-function formatAmount(value, language, useGrouping = true) {
+function formatAmount(value, language, useGrouping = true, maximumFractionDigits = 6) {
   return new Intl.NumberFormat(localeByLanguage[language], {
     useGrouping,
-    maximumFractionDigits: 6,
+    maximumFractionDigits,
   }).format(value)
 }
 
 function renderConversion() {
-  const amount = parseLocalizedNumber(amountInput.value, currentLanguage)
   const from = fromSelect.value
   const to = toSelect.value
+  const isFromAmount = activeAmountSide === 'from'
+  const activeInput = isFromAmount ? amountInput : resultInput
+  const amount = parseLocalizedNumber(
+    activeInput.value,
+    currentLanguage,
+    isFromAmount ? null : resultCurrencyCode,
+  )
   const fromCurrency = getCurrency(from)
   const toCurrency = getCurrency(to)
 
@@ -455,13 +494,15 @@ function renderConversion() {
   toName.textContent = toCurrency.names[currentLanguage]
 
   if (!Number.isFinite(amount) || amount < 0) {
-    resultOutput.textContent = '—'
+    if (isFromAmount) resultInput.value = ''
+    else amountInput.value = ''
     rateLine.textContent = translations[currentLanguage].amountInvalid
     return
   }
 
   if (!rates) {
-    resultOutput.textContent = '—'
+    if (isFromAmount) resultInput.value = ''
+    else amountInput.value = ''
     rateLine.textContent = ratesError
       ? translations[currentLanguage].rateUnavailable
       : translations[currentLanguage].rateLoading
@@ -469,18 +510,23 @@ function renderConversion() {
   }
 
   if (ratesBase !== from || !Number.isFinite(rates[to])) {
-    resultOutput.textContent = '—'
+    if (isFromAmount) resultInput.value = ''
+    else amountInput.value = ''
     rateLine.textContent = translations[currentLanguage].rateLoading
     return
   }
 
-  const convertedAmount = amount * rates[to]
   const exchangeRate = rates[to]
-  const resultDigits = new Intl.NumberFormat(localeByLanguage[currentLanguage], {
-    style: 'currency',
-    currency: to,
-  }).resolvedOptions().maximumFractionDigits
-  resultOutput.textContent = formatNumber(convertedAmount, to, resultDigits)
+  if (isFromAmount) {
+    resultInput.value = formatNumber(amount * exchangeRate, to)
+    resultCurrencyCode = to
+  } else {
+    const sourceFractionDigits = new Intl.NumberFormat(localeByLanguage[currentLanguage], {
+      style: 'currency',
+      currency: from,
+    }).resolvedOptions().maximumFractionDigits
+    amountInput.value = formatAmount(amount / exchangeRate, currentLanguage, true, sourceFractionDigits)
+  }
   rateLine.textContent = `1 ${from} = ${new Intl.NumberFormat(localeByLanguage[currentLanguage], {
     maximumSignificantDigits: 6,
   }).format(exchangeRate)} ${to}`
@@ -512,15 +558,28 @@ function updateRateStatus() {
 }
 
 function setLanguage(language) {
-  const currentAmount = parseLocalizedNumber(amountInput.value, currentLanguage)
+  const currentInput = activeAmountSide === 'from' ? amountInput : resultInput
+  const currentAmount = parseLocalizedNumber(
+    currentInput.value,
+    currentLanguage,
+    activeAmountSide === 'from' ? null : resultCurrencyCode,
+  )
   currentLanguage = language
   const copy = translations[language]
   if (Number.isFinite(currentAmount) && currentAmount >= 0) {
-    amountInput.value = formatAmount(currentAmount, language, document.activeElement !== amountInput)
+    if (activeAmountSide === 'from') {
+      amountInput.value = formatAmount(currentAmount, language, document.activeElement !== amountInput)
+    } else {
+      resultInput.value = document.activeElement === resultInput
+        ? formatAmount(currentAmount, language, false)
+        : formatNumber(currentAmount, resultCurrencyCode)
+    }
   }
   document.documentElement.lang = language
   amountInput.lang = localeByLanguage[language]
+  resultInput.lang = localeByLanguage[language]
   amountInput.inputMode = 'decimal'
+  resultInput.inputMode = 'decimal'
   document.title = copy.pageTitle
   metaDescription.content = copy.description
   brandLink.setAttribute('aria-label', copy.brand)
@@ -541,6 +600,7 @@ function setLanguage(language) {
   swapButton.title = copy.swap
   languageSwitch.setAttribute('aria-label', copy.languages)
   amountInput.setAttribute('aria-label', copy.amountAccessible)
+  resultInput.setAttribute('aria-label', copy.receivedAmountAccessible)
   fromSelect.setAttribute('aria-label', copy.fromCurrency)
   toSelect.setAttribute('aria-label', copy.toCurrency)
   languageButtons.forEach((button) => {
@@ -672,8 +732,7 @@ async function loadRates() {
     if (rates) {
       renderConversion()
     } else {
-      resultOutput.textContent = '—'
-      rateLine.textContent = translations[currentLanguage].rateUnavailable
+      renderConversion()
     }
   } finally {
     if (requestId === rateRequestId) {
@@ -734,7 +793,36 @@ installButton.addEventListener('click', async () => {
 
 setThemePreference(getInitialThemePreference())
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.DEV) {
+  window.addEventListener('load', async () => {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      const isYenlyWorker = (worker) => worker && new URL(worker.scriptURL).pathname === '/sw.js'
+      const yenlyRegistrations = registrations.filter((registration) =>
+        [registration.active, registration.waiting, registration.installing].some(isYenlyWorker),
+      )
+      const hadYenlyController = isYenlyWorker(navigator.serviceWorker.controller)
+      const unregistered = await Promise.all(
+        yenlyRegistrations.map((registration) => registration.unregister()),
+      )
+
+      if (unregistered.some((success) => !success)) {
+        throw new Error('Could not unregister Yenly service worker.')
+      }
+
+      const cacheNames = await caches.keys()
+      await Promise.all(
+        cacheNames
+          .filter((cacheName) => cacheName.startsWith('yenly-shell-'))
+          .map((cacheName) => caches.delete(cacheName)),
+      )
+
+      if (hadYenlyController) window.location.reload()
+    } catch (error) {
+      console.error('Yenly could not disable offline caching during development.', error)
+    }
+  })
+} else if ('serviceWorker' in navigator) {
   let hasActiveController = Boolean(navigator.serviceWorker.controller)
   let isReloadingForUpdate = false
 
@@ -767,51 +855,104 @@ if ('serviceWorker' in navigator) {
 languageButtons.forEach((button) => {
   button.addEventListener('click', () => setLanguage(button.dataset.language))
 })
-amountInput.addEventListener('input', renderConversion)
-amountInput.addEventListener('focus', () => {
-  const amount = parseLocalizedNumber(amountInput.value, currentLanguage)
+function prepareAmountInput(input, side) {
+  const amount = parseLocalizedNumber(
+    input.value,
+    currentLanguage,
+    side === 'to' ? resultCurrencyCode : null,
+  )
   if (!Number.isFinite(amount)) return
 
-  const selectionStart = amountInput.selectionStart ?? amountInput.value.length
-  const selectionEnd = amountInput.selectionEnd ?? selectionStart
-  const digitsBeforeStart = (amountInput.value.slice(0, selectionStart).match(/\d/g) || []).length
-  const digitsBeforeEnd = (amountInput.value.slice(0, selectionEnd).match(/\d/g) || []).length
-  amountInput.value = formatAmount(amount, currentLanguage, false)
-
+  const selectionStart = input.selectionStart ?? input.value.length
+  const selectionEnd = input.selectionEnd ?? selectionStart
+  const digitsBeforeStart = (input.value.slice(0, selectionStart).match(/\d/g) || []).length
+  const digitsBeforeEnd = (input.value.slice(0, selectionEnd).match(/\d/g) || []).length
+  input.value = formatAmount(amount, currentLanguage, false)
   const positionForDigitCount = (digitCount) => {
     if (digitCount === 0) return 0
     let digitsSeen = 0
-    for (let index = 0; index < amountInput.value.length; index += 1) {
-      if (/\d/.test(amountInput.value[index])) digitsSeen += 1
+    for (let index = 0; index < input.value.length; index += 1) {
+      if (/\d/.test(input.value[index])) digitsSeen += 1
       if (digitsSeen === digitCount) return index + 1
     }
-    return amountInput.value.length
+    return input.value.length
   }
 
-  amountInput.setSelectionRange(positionForDigitCount(digitsBeforeStart), positionForDigitCount(digitsBeforeEnd))
-})
-amountInput.addEventListener('blur', () => {
-  const amount = parseLocalizedNumber(amountInput.value, currentLanguage)
+  input.setSelectionRange(positionForDigitCount(digitsBeforeStart), positionForDigitCount(digitsBeforeEnd))
+}
+
+function formatAmountInput(input, side) {
+  const amount = parseLocalizedNumber(
+    input.value,
+    currentLanguage,
+    side === 'to' ? resultCurrencyCode : null,
+  )
   if (Number.isFinite(amount) && amount >= 0) {
-    amountInput.value = formatAmount(amount, currentLanguage)
+    if (side === 'to') {
+      input.value = formatNumber(amount, resultCurrencyCode)
+    } else {
+      const sourceFractionDigits = activeAmountSide === 'to'
+        ? new Intl.NumberFormat(localeByLanguage[currentLanguage], {
+          style: 'currency',
+          currency: fromSelect.value,
+        }).resolvedOptions().maximumFractionDigits
+        : 6
+      input.value = formatAmount(amount, currentLanguage, true, sourceFractionDigits)
+    }
   }
+}
+
+amountInput.addEventListener('input', () => {
+  activeAmountSide = 'from'
+  renderConversion()
 })
+resultInput.addEventListener('input', () => {
+  activeAmountSide = 'to'
+  renderConversion()
+})
+amountInput.addEventListener('focus', () => prepareAmountInput(amountInput, 'from'))
+resultInput.addEventListener('focus', () => prepareAmountInput(resultInput, 'to'))
+amountInput.addEventListener('blur', () => formatAmountInput(amountInput, 'from'))
+resultInput.addEventListener('blur', () => formatAmountInput(resultInput, 'to'))
 fromSelect.addEventListener('change', loadRates)
-toSelect.addEventListener('change', loadRates)
+toSelect.addEventListener('change', () => {
+  if (activeAmountSide === 'to') {
+    const amount = parseLocalizedNumber(resultInput.value, currentLanguage, resultCurrencyCode)
+    if (Number.isFinite(amount) && amount >= 0) {
+      resultInput.value = formatAmount(amount, currentLanguage, false)
+    }
+  }
+  resultCurrencyCode = toSelect.value
+  loadRates()
+})
 swapButton.addEventListener('click', () => {
   swapButton.classList.toggle('is-swapped')
+  if (activeAmountSide === 'to') {
+    const amount = parseLocalizedNumber(resultInput.value, currentLanguage, resultCurrencyCode)
+    if (Number.isFinite(amount) && amount >= 0) {
+      resultInput.value = formatAmount(amount, currentLanguage, false)
+    }
+  }
   const previousFrom = fromSelect.value
   fromSelect.value = toSelect.value
   toSelect.value = previousFrom
+  resultCurrencyCode = toSelect.value
   loadRates()
 })
 quickAmountButtons.forEach((button) => {
   button.addEventListener('click', () => {
+    activeAmountSide = 'from'
     amountInput.value = button.dataset.amount
     renderConversion()
   })
 })
 refreshButton.addEventListener('click', loadRates)
+
+const requestedAmount = new URLSearchParams(window.location.search).get('amount')
+if (requestedAmount !== null) {
+  const amount = Number(requestedAmount)
+  if (Number.isFinite(amount) && amount >= 0) amountInput.value = String(amount)
+}
 
 setLanguage(currentLanguage)
 loadRates()
