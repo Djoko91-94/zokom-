@@ -1,10 +1,10 @@
 # Configurer l’annuaire et les avis Yenly
 
-L’annuaire Tokyo utilise Supabase pour les comptes, les adresses et les avis. Il accepte quatre catégories — restauration, shopping, services pratiques et lieux à visiter — avec des sous-catégories et un budget indicatif en yens. Les nouveaux avis restent en attente jusqu’à leur validation par un modérateur.
+L’annuaire Tokyo utilise Supabase pour les comptes, les adresses et les avis. Il accepte quatre catégories — restauration, shopping, services pratiques et lieux à visiter — avec des sous-catégories, des noms français/anglais et japonais, une fourchette de prix en yens et des informations pratiques. Les nouveaux avis restent en attente jusqu’à leur validation par un modérateur.
 
 ## 1. Créer le projet Supabase
 
-Crée un projet sur [Supabase](https://supabase.com/), puis ouvre **SQL Editor** et exécute le fichier [`supabase/schema.sql`](./supabase/schema.sql). Si tu as déjà appliqué une version précédente du schéma, exécute-le à nouveau : il ajoute les champs de catégorie, de sous-catégorie et de budget en conservant les adresses existantes.
+Crée un projet sur [Supabase](https://supabase.com/), puis ouvre **SQL Editor** et exécute le fichier [`supabase/schema.sql`](./supabase/schema.sql). Si tu as déjà appliqué une version précédente du schéma, exécute-le à nouveau : il ajoute les champs de catégorie, de sous-catégorie, de prix et d’informations pratiques en conservant les adresses existantes. Les nouvelles fiches demandent le nom japonais ; les anciens lieux sans ce champ restent affichés sans lui.
 
 ## 2. Configurer l’application locale
 
@@ -47,4 +47,4 @@ where lower(email) = lower('ton-adresse@example.com')
 on conflict (user_id) do nothing;
 ```
 
-Le lien de modération apparaîtra après ta prochaine connexion. Depuis cet espace, tu pourras publier des adresses dans les quatre catégories, ajouter un budget en yens, puis approuver ou refuser les avis. Seul un modérateur ajouté directement dans la base peut prendre ces décisions. Chaque adresse doit inclure une source de vérification ; les budgets restent indicatifs et doivent être vérifiés avant publication.
+Le lien de modération apparaîtra après ta prochaine connexion. Depuis cet espace, tu pourras publier des adresses dans les quatre catégories avec leurs noms, fourchettes de prix, horaires, stations proches et liens Google Maps, puis approuver ou refuser les avis. Le bouton de conversion utilise le milieu de la fourchette et la dernière devise de destination choisie dans Yenly. Seul un modérateur ajouté directement dans la base peut prendre ces décisions. Chaque adresse doit inclure une source de vérification ; les prix et horaires restent indicatifs et doivent être vérifiés avant publication.

@@ -15,13 +15,19 @@ create table if not exists public.places (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
   name text not null check (char_length(btrim(name)) between 2 and 120),
+  name_ja text,
   category text not null default 'restaurant',
   subcategory text not null default 'other',
   budget_jpy integer,
+  price_min_jpy integer,
+  price_max_jpy integer,
   city text not null default 'Tokyo' check (char_length(btrim(city)) between 2 and 80),
   neighborhood text not null check (char_length(btrim(neighborhood)) between 2 and 80),
   address text not null check (char_length(btrim(address)) between 5 and 240),
   description text not null check (char_length(btrim(description)) between 20 and 1200),
+  opening_hours text,
+  nearest_station text,
+  maps_url text,
   website_url text check (website_url is null or website_url ~ '^https?://'),
   source_url text not null check (source_url ~ '^https?://'),
   status text not null default 'pending' check (status in ('pending', 'published', 'rejected')),
@@ -32,12 +38,23 @@ create table if not exists public.places (
 
 alter table public.places
   add column if not exists subcategory text not null default 'other',
-  add column if not exists budget_jpy integer;
+  add column if not exists budget_jpy integer,
+  add column if not exists name_ja text,
+  add column if not exists price_min_jpy integer,
+  add column if not exists price_max_jpy integer,
+  add column if not exists opening_hours text,
+  add column if not exists nearest_station text,
+  add column if not exists maps_url text;
 
 alter table public.places
   drop constraint if exists places_category_check,
   drop constraint if exists places_category_subcategory_check,
-  drop constraint if exists places_budget_jpy_check;
+  drop constraint if exists places_budget_jpy_check,
+  drop constraint if exists places_name_ja_check,
+  drop constraint if exists places_price_range_check,
+  drop constraint if exists places_opening_hours_check,
+  drop constraint if exists places_nearest_station_check,
+  drop constraint if exists places_maps_url_check;
 
 alter table public.places
   add constraint places_category_check
@@ -50,7 +67,25 @@ alter table public.places
       or (category = 'visits' and subcategory in ('other', 'neighborhood'))
     ),
   add constraint places_budget_jpy_check
-    check (budget_jpy is null or budget_jpy >= 0);
+    check (budget_jpy is null or budget_jpy >= 0),
+  add constraint places_name_ja_check
+    check (name_ja is null or char_length(btrim(name_ja)) between 1 and 120),
+  add constraint places_price_range_check
+    check (
+      (price_min_jpy is null and price_max_jpy is null)
+      or (
+        price_min_jpy is not null
+        and price_max_jpy is not null
+        and price_min_jpy >= 0
+        and price_max_jpy >= price_min_jpy
+      )
+    ),
+  add constraint places_opening_hours_check
+    check (opening_hours is null or char_length(btrim(opening_hours)) between 1 and 240),
+  add constraint places_nearest_station_check
+    check (nearest_station is null or char_length(btrim(nearest_station)) between 1 and 120),
+  add constraint places_maps_url_check
+    check (maps_url is null or maps_url ~ '^https?://');
 
 create table if not exists public.reviews (
   id uuid primary key default gen_random_uuid(),
@@ -231,12 +266,20 @@ create or replace view public.place_review_stats
 with (security_invoker = true)
 as
   select
-    place_id,
+    approved_reviews.place_id,
     count(*)::integer as review_count,
-    round(avg(rating)::numeric, 1) as average_rating
-  from public.reviews
-  where status = 'approved'
-  group by place_id;
+    round(avg(approved_reviews.rating)::numeric, 1) as average_rating,
+    (
+      select latest_review.body
+      from public.reviews as latest_review
+      where latest_review.place_id = approved_reviews.place_id
+        and latest_review.status = 'approved'
+      order by latest_review.created_at desc, latest_review.id desc
+      limit 1
+    ) as latest_review
+  from public.reviews as approved_reviews
+  where approved_reviews.status = 'approved'
+  group by approved_reviews.place_id;
 
 grant usage on schema public to anon, authenticated;
 grant select on public.profiles to anon, authenticated;

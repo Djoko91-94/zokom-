@@ -111,13 +111,16 @@
               <div>
                 <p class="directory-card-label">ADRESSE SÉLECTIONNÉE</p>
                 <h3 id="selected-place-name"></h3>
+                <p class="place-name-ja" id="selected-place-name-ja" lang="ja" hidden></p>
                 <p id="selected-place-address"></p>
                 <p class="place-budget" id="selected-place-budget" hidden></p>
+                <div id="selected-place-practical"></div>
               </div>
               <button class="text-button" id="close-selected-place" type="button">Fermer</button>
             </div>
 
             <div class="selected-place-actions">
+              <a class="directory-card-link" id="selected-place-maps" target="_blank" rel="noopener noreferrer">Voir sur Google Maps <span aria-hidden="true">↗</span></a>
               <a class="directory-card-link" id="selected-place-website" target="_blank" rel="noopener noreferrer" hidden>Site officiel <span aria-hidden="true">↗</span></a>
               <button class="primary-button" id="open-review-form" type="button">Écrire un avis</button>
             </div>
@@ -214,11 +217,16 @@
                   <option value="halal">Halal</option>
                 </select>
               </label>
-              <label><span>Nom du lieu</span><input name="name" type="text" maxlength="120" required /></label>
+              <label><span>Nom du lieu (français / anglais)</span><input name="name" type="text" maxlength="120" required /></label>
+              <label><span>Nom en japonais</span><input name="nameJa" type="text" lang="ja" maxlength="120" required /></label>
               <label><span>Quartier de Tokyo</span><input name="neighborhood" type="text" maxlength="80" required /></label>
               <label><span>Adresse ou zone</span><input name="address" type="text" maxlength="240" required /></label>
-              <label class="place-form-description"><span>Description et informations utiles</span><textarea name="description" rows="3" minlength="20" maxlength="1200" required></textarea></label>
-              <label><span>Budget indicatif en yens / personne</span><input name="budgetJpy" type="number" min="0" step="1" inputmode="numeric" /></label>
+              <label class="place-form-description"><span>À retenir / description courte</span><textarea name="description" rows="3" minlength="20" maxlength="280" required></textarea></label>
+              <label><span>Prix minimum en yens / personne</span><input name="priceMinJpy" type="number" min="0" max="2147483647" step="1" inputmode="numeric" /></label>
+              <label><span>Prix maximum en yens / personne</span><input name="priceMaxJpy" type="number" min="0" max="2147483647" step="1" inputmode="numeric" /></label>
+              <label><span>Horaires d’ouverture</span><input name="openingHours" type="text" maxlength="240" placeholder="Ex. tous les jours, 11 h–22 h" /></label>
+              <label><span>Station la plus proche</span><input name="nearestStation" type="text" maxlength="120" placeholder="Ex. Shinjuku-sanchome, sortie B2" /></label>
+              <label><span>Lien Google Maps (facultatif)</span><input name="mapsUrl" type="url" inputmode="url" placeholder="Sinon, un lien de recherche sera créé" /></label>
               <label><span>Site officiel (facultatif)</span><input name="websiteUrl" type="url" inputmode="url" /></label>
               <label><span>Source de vérification</span><input name="sourceUrl" type="url" inputmode="url" required /></label>
               <button class="primary-button" type="submit">Publier cette adresse</button>

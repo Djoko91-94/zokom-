@@ -1291,6 +1291,13 @@ a.directory-card:hover {
   font-size: 10px;
 }
 
+.place-name-ja {
+  margin: -5px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .place-card h3,
 .selected-place-heading h3,
 .account-panel-heading h3,
@@ -1310,6 +1317,26 @@ a.directory-card:hover {
   color: var(--text-label);
   font-size: 10px;
   line-height: 1.6;
+}
+
+.place-practical-info {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.place-practical-info p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.place-practical-info strong {
+  color: var(--ink);
 }
 
 .place-budget {
@@ -1354,6 +1381,18 @@ a.directory-card:hover {
 .place-rating strong {
   color: var(--ink);
   font-size: 11px;
+}
+
+.place-review-preview {
+  width: 100%;
+  margin: 0;
+  padding: 9px 11px;
+  border-left: 2px solid var(--orange);
+  border-radius: 0 6px 6px 0;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.65;
 }
 
 .rating-stars {

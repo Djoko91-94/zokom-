@@ -55,8 +55,11 @@ const directoryStatus = document.querySelector('#directory-status')
 const placeList = document.querySelector('#place-list')
 const selectedPlacePanel = document.querySelector('#selected-place-panel')
 const selectedPlaceName = document.querySelector('#selected-place-name')
+const selectedPlaceNameJapanese = document.querySelector('#selected-place-name-ja')
 const selectedPlaceAddress = document.querySelector('#selected-place-address')
 const selectedPlaceBudget = document.querySelector('#selected-place-budget')
+const selectedPlacePractical = document.querySelector('#selected-place-practical')
+const selectedPlaceMaps = document.querySelector('#selected-place-maps')
 const selectedPlaceWebsite = document.querySelector('#selected-place-website')
 const selectedPlaceStatus = document.querySelector('#selected-place-status')
 const reviewList = document.querySelector('#review-list')
@@ -107,6 +110,74 @@ function createElement(tagName, className, text) {
 
 function formatReviewCount(count) {
   return new Intl.NumberFormat('fr-FR').format(count)
+}
+
+function getPriceDetails(place) {
+  const minimum = place.price_min_jpy === null || place.price_min_jpy === undefined
+    ? null
+    : Number(place.price_min_jpy)
+  const maximum = place.price_max_jpy === null || place.price_max_jpy === undefined
+    ? null
+    : Number(place.price_max_jpy)
+
+  if (Number.isSafeInteger(minimum) && Number.isSafeInteger(maximum) && maximum >= minimum) {
+    return {
+      label: `Prix : ¥${formatReviewCount(minimum)} – ¥${formatReviewCount(maximum)} / personne`,
+      amount: Math.round((minimum + maximum) / 2),
+      convertLabel: 'Convertir le prix moyen',
+    }
+  }
+
+  const legacyBudget = place.budget_jpy === null || place.budget_jpy === undefined
+    ? null
+    : Number(place.budget_jpy)
+  if (Number.isSafeInteger(legacyBudget) && legacyBudget >= 0) {
+    return {
+      label: `Budget indicatif : ¥${formatReviewCount(legacyBudget)} / personne`,
+      amount: legacyBudget,
+      convertLabel: 'Convertir ce budget',
+    }
+  }
+
+  return null
+}
+
+function getMapsUrl(place) {
+  const savedMapsUrl = safeExternalUrl(place.maps_url)
+  if (savedMapsUrl) return savedMapsUrl
+
+  const query = [place.name_ja, place.name, place.address, place.neighborhood]
+    .filter(Boolean)
+    .join(' ')
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
+function createPlacePracticalInfo(place) {
+  const entries = [
+    ['Horaires', place.opening_hours],
+    ['Métro', place.nearest_station],
+  ].filter(([, value]) => value)
+  if (entries.length === 0) return null
+
+  const info = createElement('div', 'place-practical-info')
+  entries.forEach(([label, value]) => {
+    const row = createElement('p')
+    row.append(createElement('strong', '', `${label} : `), document.createTextNode(value))
+    info.append(row)
+  })
+  return info
+}
+
+function updatePlacePrice(element, place) {
+  const price = getPriceDetails(place)
+  element.hidden = !price
+  element.replaceChildren()
+  if (!price) return
+
+  const label = createElement('span', '', price.label)
+  const convertLink = createElement('a', '', price.convertLabel)
+  convertLink.href = `/?amount=${encodeURIComponent(price.amount)}`
+  element.append(label, convertLink)
 }
 
 function getCategoryDefinition(category) {
@@ -184,6 +255,7 @@ function renderPlaceCard(place) {
   const label = createElement('span', 'directory-card-label', `${getCategoryLabel(place.category)} · ${getSubcategoryLabel(place.category, place.subcategory)}`)
   const neighborhood = createElement('span', 'place-neighborhood', place.neighborhood)
   const heading = createElement('h3', '', place.name)
+  const japaneseName = place.name_ja ? createElement('p', 'place-name-ja', place.name_ja) : null
   const address = createElement('p', 'place-address', place.address)
   const description = createElement('p', 'place-description', place.description)
   const rating = createElement('p', 'place-rating')
@@ -196,6 +268,7 @@ function renderPlaceCard(place) {
   const selectButton = createElement('button', 'text-button', 'Lire les avis')
 
   top.append(label, neighborhood)
+  if (japaneseName) japaneseName.lang = 'ja'
   stars.setAttribute('aria-hidden', 'true')
   stars.textContent = stats.average_rating === null
     ? '☆☆☆☆☆'
@@ -206,18 +279,29 @@ function renderPlaceCard(place) {
   actions.append(selectButton)
 
   const websiteLink = makeExternalLink(place.website_url, 'Site officiel ↗')
+  const mapsLink = makeExternalLink(getMapsUrl(place), 'Voir sur Google Maps ↗')
+  const reviewPreview = stats.latest_review
+    ? createElement(
+      'blockquote',
+      'place-review-preview',
+      `« ${stats.latest_review.length > 150 ? `${stats.latest_review.slice(0, 147).trimEnd()}…` : stats.latest_review} »`,
+    )
+    : null
+  const price = createElement('p', 'place-budget')
+  updatePlacePrice(price, place)
+  const practicalInfo = createPlacePracticalInfo(place)
+
+  if (mapsLink) actions.append(mapsLink)
   if (websiteLink) actions.append(websiteLink)
 
-  const content = [top, heading, address, description]
-  if (place.budget_jpy !== null && place.budget_jpy !== undefined) {
-    const budget = createElement('p', 'place-budget')
-    const budgetLabel = createElement('span', '', `Budget indicatif : ¥${formatReviewCount(Number(place.budget_jpy))} / personne`)
-    const convertLink = createElement('a', '', 'Convertir')
-    convertLink.href = `/?amount=${encodeURIComponent(place.budget_jpy)}`
-    budget.append(budgetLabel, convertLink)
-    content.push(budget)
-  }
-  card.append(...content, rating, actions)
+  const content = [top, heading]
+  if (japaneseName) content.push(japaneseName)
+  content.push(address, description)
+  if (practicalInfo) content.push(practicalInfo)
+  if (!price.hidden) content.push(price)
+  card.append(...content, rating)
+  if (reviewPreview) card.append(reviewPreview)
+  card.append(actions)
   return card
 }
 
@@ -234,7 +318,7 @@ function renderPlaces() {
     .filter((place) => !neighborhood || place.neighborhood === neighborhood)
     .filter((place) => {
       if (!search) return true
-      return `${place.name} ${place.neighborhood} ${place.address} ${place.description} ${getCategoryLabel(place.category)} ${getSubcategoryLabel(place.category, place.subcategory)}`
+      return `${place.name} ${place.name_ja || ''} ${place.neighborhood} ${place.address} ${place.description} ${place.opening_hours || ''} ${place.nearest_station || ''} ${getCategoryLabel(place.category)} ${getSubcategoryLabel(place.category, place.subcategory)}`
         .toLocaleLowerCase('fr-FR')
         .includes(search)
     })
@@ -282,11 +366,11 @@ async function loadDirectory() {
 
   const [placesResult, statsResult] = await Promise.all([
     supabase.from('places')
-      .select('id, slug, name, category, subcategory, budget_jpy, neighborhood, address, description, website_url')
+      .select('id, slug, name, name_ja, category, subcategory, budget_jpy, price_min_jpy, price_max_jpy, neighborhood, address, description, opening_hours, nearest_station, maps_url, website_url')
       .eq('status', 'published')
       .order('name', { ascending: true }),
     supabase.from('place_review_stats')
-      .select('place_id, review_count, average_rating'),
+      .select('place_id, review_count, average_rating, latest_review'),
   ])
 
   if (placesResult.error) throw placesResult.error
@@ -363,17 +447,15 @@ function updateSelectedPlace() {
 
   selectedPlacePanel.hidden = false
   selectedPlaceName.textContent = state.selectedPlace.name
+  selectedPlaceNameJapanese.textContent = state.selectedPlace.name_ja || ''
+  selectedPlaceNameJapanese.hidden = !state.selectedPlace.name_ja
   selectedPlaceAddress.textContent = `${state.selectedPlace.neighborhood} · ${state.selectedPlace.address}`
-  selectedPlaceBudget.hidden = state.selectedPlace.budget_jpy === null || state.selectedPlace.budget_jpy === undefined
-  selectedPlaceBudget.replaceChildren()
-  if (!selectedPlaceBudget.hidden) {
-    const convertLink = createElement('a', '', 'Convertir ce budget')
-    convertLink.href = `/?amount=${encodeURIComponent(state.selectedPlace.budget_jpy)}`
-    selectedPlaceBudget.append(
-      document.createTextNode(`Budget indicatif : ¥${formatReviewCount(Number(state.selectedPlace.budget_jpy))} / personne · `),
-      convertLink,
-    )
-  }
+  updatePlacePrice(selectedPlaceBudget, state.selectedPlace)
+  selectedPlacePractical.replaceChildren()
+  const practicalInfo = createPlacePracticalInfo(state.selectedPlace)
+  if (practicalInfo) selectedPlacePractical.append(practicalInfo)
+  selectedPlaceMaps.href = getMapsUrl(state.selectedPlace)
+  selectedPlaceMaps.hidden = false
   const websiteUrl = safeExternalUrl(state.selectedPlace.website_url)
   selectedPlaceWebsite.hidden = !websiteUrl
   if (websiteUrl) {
@@ -628,17 +710,47 @@ async function submitPlace(event) {
 
   const formData = new FormData(placeForm)
   const placeName = String(formData.get('name')).trim()
-  const budgetJpyValue = String(formData.get('budgetJpy') || '').trim()
+  const minimumPriceValue = String(formData.get('priceMinJpy') || '').trim()
+  const maximumPriceValue = String(formData.get('priceMaxJpy') || '').trim()
+  const minimumPrice = minimumPriceValue ? Number(minimumPriceValue) : null
+  const maximumPrice = maximumPriceValue ? Number(maximumPriceValue) : null
+  const nameJapanese = String(formData.get('nameJa')).trim()
+  if (!nameJapanese) {
+    setStatus(placeSubmitStatus, 'Ajoutez le nom japonais du lieu.', 'error')
+    return
+  }
+  if ((minimumPrice === null) !== (maximumPrice === null)) {
+    setStatus(placeSubmitStatus, 'Saisissez les deux bornes du prix, ou laissez les deux vides.', 'error')
+    return
+  }
+  if (minimumPrice !== null && (
+    !Number.isSafeInteger(minimumPrice)
+    || !Number.isSafeInteger(maximumPrice)
+    || minimumPrice < 0
+    || maximumPrice > 2147483647
+    || maximumPrice < minimumPrice
+  )) {
+    setStatus(placeSubmitStatus, 'Saisissez des prix entiers valides et vérifiez que le maximum est supérieur ou égal au minimum.', 'error')
+    return
+  }
+
   const websiteUrl = String(formData.get('websiteUrl')).trim()
+  const mapsUrl = String(formData.get('mapsUrl')).trim()
   const place = {
     slug: `${slugify(placeName) || 'place'}-${crypto.randomUUID().slice(0, 8)}`,
     name: placeName,
+    name_ja: nameJapanese,
     category: String(formData.get('category')),
     subcategory: String(formData.get('subcategory')),
-    budget_jpy: budgetJpyValue ? Number(budgetJpyValue) : null,
+    budget_jpy: null,
+    price_min_jpy: minimumPrice,
+    price_max_jpy: maximumPrice,
     neighborhood: String(formData.get('neighborhood')).trim(),
     address: String(formData.get('address')).trim(),
     description: String(formData.get('description')).trim(),
+    opening_hours: String(formData.get('openingHours')).trim() || null,
+    nearest_station: String(formData.get('nearestStation')).trim() || null,
+    maps_url: mapsUrl || null,
     website_url: websiteUrl || null,
     source_url: String(formData.get('sourceUrl')).trim(),
     status: 'published',

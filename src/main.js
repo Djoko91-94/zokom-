@@ -412,8 +412,27 @@ function setThemePreference(preference, persist = false) {
   }
 }
 
+function getPreferredResultCurrency() {
+  try {
+    const savedCurrency = localStorage.getItem('yenly-result-currency')
+    if (currencies.some(({ code }) => code === savedCurrency)) return savedCurrency
+  } catch (error) {
+    console.warn('Yenly could not read the preferred result currency.', error)
+  }
+
+  return 'EUR'
+}
+
+function savePreferredResultCurrency(currency) {
+  try {
+    localStorage.setItem('yenly-result-currency', currency)
+  } catch (error) {
+    console.warn('Yenly could not save the preferred result currency.', error)
+  }
+}
+
 fromSelect.value = 'JPY'
-toSelect.value = 'EUR'
+toSelect.value = getPreferredResultCurrency()
 
 function getCurrency(code) {
   return currencies.find((currency) => currency.code === code)
@@ -591,11 +610,12 @@ function setLanguage(language) {
   })
 
   const selectedFrom = fromSelect.value || 'JPY'
-  const selectedTo = toSelect.value || 'EUR'
+  const selectedTo = toSelect.value || getPreferredResultCurrency()
   fromSelect.innerHTML = currencyOptions(language)
   toSelect.innerHTML = currencyOptions(language)
   fromSelect.value = selectedFrom
   toSelect.value = selectedTo
+  resultCurrencyCode = selectedTo
   swapButton.setAttribute('aria-label', copy.swap)
   swapButton.title = copy.swap
   languageSwitch.setAttribute('aria-label', copy.languages)
@@ -923,6 +943,7 @@ toSelect.addEventListener('change', () => {
     }
   }
   resultCurrencyCode = toSelect.value
+  savePreferredResultCurrency(resultCurrencyCode)
   loadRates()
 })
 swapButton.addEventListener('click', () => {
@@ -937,6 +958,7 @@ swapButton.addEventListener('click', () => {
   fromSelect.value = toSelect.value
   toSelect.value = previousFrom
   resultCurrencyCode = toSelect.value
+  savePreferredResultCurrency(resultCurrencyCode)
   loadRates()
 })
 quickAmountButtons.forEach((button) => {
